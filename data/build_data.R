@@ -1,15 +1,19 @@
+# Load required packages -------------------------------------------------------
 library(tidyverse)
 library(quantmod)
 library(data.table)
 library(arrow)
 
-# Initialize data table
+# Initialize data table -------------------------------------------------------
+
 # ^GSPC is the S&P500
 df <- getSymbols("^GSPC", from = as.Date("2022-01-01"), to = as.Date("2023-12-31"),
                  src = "yahoo", auto.assign = FALSE)
 df <- data.table(df, keep.rownames = TRUE) %>%
   rename_all(~c("Date", "Open", "High", "Low", "Close", "Volume", "Adjusted")) %>%
   mutate(Symbol = "GSPC")
+
+# Pull ticker data -------------------------------------------------------------
 
 # Other tickers to pull data for 
 symbols <- c("^OEX",     # S&P100
@@ -31,11 +35,13 @@ symbols <- c("^OEX",     # S&P100
              "GILD"      # Gilead 
              )
 
+# Iterate through tickers and pull price data
 for (t in symbols) {
   df_symbol <- getSymbols(t, from = as.Date("2022-01-01"), to = as.Date("2023-12-31"),
                           src = "yahoo", auto.assign = FALSE)
   df_symbol <- data.table(df_symbol, keep.rownames = TRUE) %>%
     rename_all(~c("Date", "Open", "High", "Low", "Close", "Volume", "Adjusted")) %>%
+    # Remove the "^"
     mutate(Symbol = gsub("\\^", "", t))
   
   df <- rbind(df, df_symbol)
@@ -44,6 +50,8 @@ for (t in symbols) {
 df <- df %>%
   mutate(Date = as.Date(Date)) %>%
   arrange(Date)
+
+# Save data --------------------------------------------------------------------
 
 # write data
 write_parquet(df, "pharmaceuticals_2022and2023.parquet")
