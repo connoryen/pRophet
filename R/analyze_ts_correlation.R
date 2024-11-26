@@ -149,13 +149,14 @@ analyze_ts_correlation <- function(df,
     Series1 = zoo::coredata(aligned_series)[,1],
     Series2 = zoo::coredata(aligned_series)[,2]
   ) %>%
-    tidyr::pivot_longer(cols = c(Series1, Series2),
+    dplyr::rename_all(~c("Date", unique_groups[1], unique_groups[2])) %>%
+    tidyr::pivot_longer(cols = c(unique_groups[1], unique_groups[2]),
                         names_to = "Series",
                         values_to = "Value")
   
   ts_plot <- ggplot2::ggplot(plot_df, 
                              ggplot2::aes(x = Date, y = Value, color = Series)) +
-    ggplot2::geom_line() +
+    ggplot2::geom_line() + 
     ggplot2::theme_minimal() +
     ggplot2::labs(subtitle = "A) Raw Time Series",
                   x = "Date",
@@ -275,7 +276,7 @@ analyze_ts_correlation <- function(df,
       # Add points with lighter colors (first layer)
       ggplot2::geom_point(
         ggplot2::aes(color = quantile_value),
-        alpha = 0.6, 
+        alpha = 0.85, 
         size = 1.5
       ) +
       # Custom color gradient for points
@@ -353,7 +354,8 @@ analyze_ts_correlation <- function(df,
   
   combined_plot <- (ts_plot + ccf_plot) / (rolling_cor_plot + scatter_qr_plot) +
     patchwork::plot_annotation(
-      title = "Time Series Correlation Analysis",
+      title = paste0("Time Series Correlation Analysis: ", 
+                     unique_groups[1], " & ", unique_groups[2]),
       theme = ggplot2::theme(plot.title = ggplot2::element_text(size = 16))
     )
   

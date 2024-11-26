@@ -60,18 +60,15 @@ cor_results_test_X1X3$statistics
 cor_results_test_X1X4$statistics
 
 
-# Load in data & visualize -----------------------------------------------------
+# Test real data ---------------------------------------------------------------
 
-unique(df$Symbol)
-
-# Plot real stock data
-df %>%
+cor_results_test_NVO_GILD <- df %>%
   filter(Symbol %in% c("NVO", "GILD")) %>%
-  ggplot(aes(x = Date, y = Open, col = Symbol)) + 
-  geom_line() + 
-  theme_minimal()
+  analyze_ts_correlation(date_col = "Date", value_col = "Open", group_col = "Symbol")
 
-
+cor_results_test_NVO_GILD
+cor_results_test_NVO_GILD$plot
+cor_results_test_NVO_GILD$statistics
 
 
 
