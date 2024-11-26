@@ -1,14 +1,78 @@
-library(dplyr)
-library(ggplot2)
-library(tidyr)
-library(stats)
-library(forecast)
-library(tseries)
-library(gridExtra)
-library(lmtest)
-library(zoo)
-library(patchwork)  # For combining plots
-
+#' Analyze Correlation Between Two Time Series
+#' 
+#' @description
+#' Performs comprehensive correlation analysis between two time series, including
+#' both time-domain and frequency-domain analyses. Particularly useful for financial
+#' time series and ARIMAX modeling. Creates a combined visualization of four key plots
+#' and returns various correlation statistics and diagnostic tests.
+#' 
+#' @param df A data frame containing the time series data
+#' @param date_col Character string specifying the date column name (default: "Date")
+#' @param value_col Character string specifying the value column name (default: "Value")
+#' @param group_col Character string specifying the group column name (default: "Col")
+#' @param max_lag Integer specifying maximum lag for cross-correlation (default: 24)
+#' 
+#' @return A list containing:
+#' \itemize{
+#'   \item plot: Combined visualization of four plots (see Details)
+#'   \item statistics: List of correlation measures
+#'   \item diagnostics: Statistical test results
+#'   \item metadata: Analysis metadata
+#' }
+#' 
+#' @details
+#' The function creates a combined visualization with four plots:
+#' 
+#' A) Raw Time Series Plot
+#'    - Shows both time series plotted over time
+#'    - Use to visually inspect co-movement and patterns
+#'    - Look for common trends, seasonality, and structural breaks
+#' 
+#' B) Cross-Correlation Function (CCF) Plot
+#'    - Shows correlation at different lags
+#'    - Red dashed lines indicate significance bounds (±1.96/√n)
+#'    - Peaks outside bounds indicate significant correlation at that lag
+#'    - Positive lag means first series leads second series
+#' 
+#' C) Rolling Correlation Plot
+#'    - Shows how correlation changes over time (30-period window)
+#'    - Values near 1 indicate strong positive correlation
+#'    - Values near -1 indicate strong negative correlation
+#'    - Useful for detecting relationship stability
+#' 
+#' D) Scatter Plot
+#'    - Direct visualization of relationship between series
+#'    - Red line shows fitted linear relationship
+#'    - Tight clustering around line suggests strong linear relationship
+#'    - Pattern deviations suggest non-linear relationships
+#' 
+#' Statistical Tests Interpretation:
+#' \itemize{
+#'   \item Granger Causality Test
+#'     - Null hypothesis: No Granger causality
+#'     - p < 0.05 suggests first series helps predict second series
+#'   \item Augmented Dickey-Fuller (ADF) Test
+#'     - Null hypothesis: Series has unit root (non-stationary)
+#'     - p < 0.05 suggests series is stationary
+#'   \item Correlation Measures
+#'     - Contemporaneous: Current period correlation
+#'     - Returns: Correlation of log returns
+#'     - Maximum CCF: Strongest correlation at any lag
+#' }
+#' 
+#' @examples
+#' \dontrun{
+#' data <- data.frame(
+#'   Date = as.Date(c("2023-01-01", "2023-01-01", "2023-01-02", "2023-01-02")),
+#'   Value = c(1.2, 1.3, 2.2, 1.8),
+#'   Col = c("site_1", "site_2", "site_1", "site_2")
+#' )
+#' results <- analyze_ts_correlation(data)
+#' results$plot  # Display combined visualization
+#' }
+#'
+#' @importFrom dplyr %>%
+#' @import ggplot2
 analyze_ts_correlation <- function(df, 
                                    date_col = "Date", 
                                    value_col = "Value", 
@@ -116,7 +180,12 @@ analyze_ts_correlation <- function(df,
   scatter_plot <- ggplot2::ggplot(scatter_df, 
                                   ggplot2::aes(x = Series1, y = Series2)) +
     ggplot2::geom_point(alpha = 0.5) +
-    ggplot2::geom_smooth(method = "lm", color = "red") +
+    ggplot2::geom_smooth(method = "lm", 
+                         se = TRUE,        # Explicitly enable standard error bands
+                         color = "red",
+                         fill = "#FF000033", # Red with transparency
+                         alpha = 0.2,      # Transparency of confidence band
+                         level = 0.95) +   
     ggplot2::theme_minimal() +
     ggplot2::labs(subtitle = "D) Series Correlation Scatter Plot",
                   x = unique_groups[1],
@@ -137,7 +206,7 @@ analyze_ts_correlation <- function(df,
   returns2 <- diff(log(ts2))
   returns_cor <- stats::cor(returns1, returns2)
   
-  results <- list(
+  list(
     plot = combined_plot,
     statistics = list(
       contemporaneous_correlation = contemporaneous_cor,
@@ -157,7 +226,7 @@ analyze_ts_correlation <- function(df,
       }),
       stationarity_tests = list(
         series1_adf = tseries::adf.test(ts1),
-        series2_adf = adf.test(ts2)
+        series2_adf = tseries::adf.test(ts2)
       )
     ),
     metadata = list(
@@ -167,57 +236,4 @@ analyze_ts_correlation <- function(df,
       sampling_frequency = mean(diff(zoo::index(aligned_series)))
     )
   )
-  
-  class(results) <- "ts_correlation"
-  return(results)
-}
-
-# Print method for interpretation
-print.ts_correlation <- function(x, ...) {
-  cat("Time Series Correlation Analysis Results\n")
-  cat("=======================================\n\n")
-  
-  cat("1. Basic Correlation Measures:\n")
-  cat("   - Contemporaneous correlation:", 
-      round(x$statistics$contemporaneous_correlation, 3), "\n")
-  cat("   - Returns correlation:", 
-      round(x$statistics$returns_correlation, 3), "\n")
-  cat("   - Maximum cross-correlation:", 
-      round(x$statistics$max_cross_correlation, 3), 
-      "at lag", x$statistics$max_cross_correlation_lag, "\n\n")
-  
-  cat("2. Interpretation Guide:\n")
-  cat("   Plot A (Raw Time Series):\n")
-  cat("   - Shows the raw values of both series over time\n")
-  cat("   - Look for common trends and patterns\n\n")
-  
-  cat("   Plot B (Cross-Correlation Function):\n")
-  cat("   - Shows correlation at different lags\n")
-  cat("   - Red dashed lines are significance bounds\n")
-  cat("   - Peaks outside bounds indicate significant correlation\n\n")
-  
-  cat("   Plot C (Rolling Correlation):\n")
-  cat("   - Shows how correlation changes over time\n")
-  cat("   - Values near 1 indicate strong positive correlation\n")
-  cat("   - Values near -1 indicate strong negative correlation\n\n")
-  
-  cat("   Plot D (Scatter Plot):\n")
-  cat("   - Shows direct relationship between series\n")
-  cat("   - Red line shows linear relationship\n")
-  cat("   - Clustered points suggest strong relationship\n\n")
-  
-  cat("3. Statistical Tests:\n")
-  cat("   Granger Causality Test:\n")
-  if (!is.null(x$diagnostics$granger_test)) {
-    cat("   - H0: No Granger causality\n")
-    cat("   - p-value:", 
-        round(x$diagnostics$granger_test$`Pr(>F)`[2], 4), "\n")
-  }
-  
-  cat("\n   Stationarity Tests (ADF):\n")
-  cat("   - Series 1 p-value:", 
-      round(x$diagnostics$stationarity_tests$series1_adf$p.value, 4), "\n")
-  cat("   - Series 2 p-value:", 
-      round(x$diagnostics$stationarity_tests$series2_adf$p.value, 4), "\n")
-  cat("   - H0: Series has unit root (non-stationary)\n")
 }

@@ -4,18 +4,7 @@ library(tidyverse)
 library(arrow)
 set.seed(1212472)
 
-# Load in data & visualize -----------------------------------------------------
-
 df <- read_parquet("../data/pharmaceuticals_2022and2023.parquet")
-
-unique(df$Symbol)
-
-# Plot real stock data
-df %>%
-  filter(Symbol %in% c("NVO", "GILD")) %>%
-  ggplot(aes(x = Date, y = Open, col = Symbol)) + 
-  geom_line() + 
-  theme_minimal()
 
 # Build test data --------------------------------------------------------------
 
@@ -31,9 +20,13 @@ df_test <- df %>%
   summarise() %>%
   tibble::rowid_to_column("t") %>% 
   mutate(X1 = RW(n(), 20, 0.01, 0.1)) %>%
-  mutate(X2 = 8 + 0.8*X1 + rnorm(n(), 0, 0.15),
-         X3 = 8 + 0.8*X1 + RW(n(), 0, 0.01, 0.1) + rnorm(n(), 0, 0.05)) %>%
-  pivot_longer(cols = c(X1, X2, X3), names_to = "Symbol", values_to = "Open")
+  mutate(X2 = 8 + 0.8*X1 + rnorm(n(), 0, 0.15),  # strict correlation
+         # less strong correlation
+         X3 = 8 + 0.8*X1 + RW(n(), 0, 0.01, 0.1) + rnorm(n(), 0, 0.05),
+         # Lagging correlation (X1 is a leading indicator for X4)
+         X4 = 2 + 0.9*lag(X3, n=10) + rnorm(n(), 0, 0.1)) %>%
+  filter(!is.na(X4)) %>%
+  pivot_longer(cols = c(X1, X2, X3, X4), names_to = "Symbol", values_to = "Open")
 
 df_test %>%
   ggplot(aes(x = Date, y = Open, col = Symbol)) + 
@@ -50,9 +43,28 @@ cor_results_test_X1X3 <- df_test %>%
   filter(Symbol %in% c("X1", "X3")) %>%
   analyze_ts_correlation(date_col = "Date", value_col = "Open", group_col = "Symbol")
 
+cor_results_test_X1X4 <- df_test %>%
+  filter(Symbol %in% c("X1", "X4")) %>%
+  analyze_ts_correlation(date_col = "Date", value_col = "Open", group_col = "Symbol")
+
+
 cor_results_test_X1X2$plot
 cor_results_test_X1X3$plot
+cor_results_test_X1X4$plot
 
+
+
+
+# Load in data & visualize -----------------------------------------------------
+
+unique(df$Symbol)
+
+# Plot real stock data
+df %>%
+  filter(Symbol %in% c("NVO", "GILD")) %>%
+  ggplot(aes(x = Date, y = Open, col = Symbol)) + 
+  geom_line() + 
+  theme_minimal()
 
 
 
