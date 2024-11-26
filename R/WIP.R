@@ -38,7 +38,7 @@ df_test %>%
 cor_results_test_X1X2 <- df_test %>%
   filter(Symbol %in% c("X1", "X2")) %>%
   analyze_ts_correlation(date_col = "Date", value_col = "Open", group_col = "Symbol")
-  
+
 cor_results_test_X1X3 <- df_test %>%
   filter(Symbol %in% c("X1", "X3")) %>%
   analyze_ts_correlation(date_col = "Date", value_col = "Open", group_col = "Symbol")
@@ -47,12 +47,17 @@ cor_results_test_X1X4 <- df_test %>%
   filter(Symbol %in% c("X1", "X4")) %>%
   analyze_ts_correlation(date_col = "Date", value_col = "Open", group_col = "Symbol")
 
+cor_results_test_X1X2
+cor_results_test_X1X3
+cor_results_test_X1X4
 
 cor_results_test_X1X2$plot
 cor_results_test_X1X3$plot
 cor_results_test_X1X4$plot
 
-
+cor_results_test_X1X2$statistics
+cor_results_test_X1X3$statistics
+cor_results_test_X1X4$statistics
 
 
 # Load in data & visualize -----------------------------------------------------
