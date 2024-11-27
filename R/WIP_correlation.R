@@ -64,7 +64,8 @@ cor_results_test_X1X4$statistics
 
 cor_results_test_NVO_GILD <- df %>%
   filter(Symbol %in% c("NVO", "GILD")) %>%
-  analyze_ts_correlation(date_col = "Date", value_col = "Open", group_col = "Symbol")
+  analyze_ts_correlation(date_col = "Date", value_col = "Open", group_col = "Symbol",
+                         window_size = 90, max_lag = 120)
 
 cor_results_test_NVO_GILD
 cor_results_test_NVO_GILD$plot
